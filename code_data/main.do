@@ -120,51 +120,6 @@ graph export "$dir\figures\coefplot-paid.png", as(png) replace
 
 restore
 
-* Time use within employment related activities
-preserve
-keep if inrange(Age, 15, 64)
-keep if inrange(Principal_Activity_Status, 11, 81) // labor force
-
-gen labor_cgnp = time_spent * inlist(acty_2d, 11)
-gen labor_hheg = time_spent * inlist(acty_2d, 12)
-gen labor_hhes = time_spent * inlist(acty_2d, 13)
-gen labor_brk = time_spent * inlist(acty_2d, 14)
-gen labor_trn = time_spent * inlist(acty_2d, 15)
-gen labor_seek = time_spent * inlist(acty_2d, 16)
-gen labor_bus = time_spent * inlist(acty_2d, 17)
-gen labor_com = time_spent * inlist(acty_2d, 18)
-
-gen statecode_24 = real(substr(NSS_Region), 1, 2)
-destring District, gen(districtcode_24)
-
-collapse (sum) labor_* (mean) MULT, by(personid hhid state district)
-merge m:1 statecode_24 districtcode_24 using "$dir\data\concordance_24tonew.dta", keepusing(area) nogen
-
-gen wgt= MULT/100
-collapse (mean) labor_* [pw = wgt], by(area)
-saveold "$dir\data\tus-district.dta", replace
-
-merge 1:m area using "$dir\data\exposure.dta", nogen 
-la var labor_cgnp "Corp/Gov/Non-Profit" 
-la var labor_hheg "HH Enterprise - Goods"
-la var labor_hhes "HH Enterprise - Services"
-la var labor_brk "Breaks"
-la var labor_trn "Training"
-la var labor_seek "Seeking"
-la var labor_bus "Business"
-la var labor_com "Commute"
-
-foreach var of varlist labor_cgnp labor_hheg labor_hhes labor_brk labor_trn labor_seek labor_bus labor_com {
-	reghdfe `var' sh_exposed [aw = pc11_pca_tot_p], a(pc11_state_id) vce(cluster pc11_state_id)
-	est sto m`var'
-	outreg2 using table-3.tex, tex(frag) bdec(3) append label
-}
-
-coefplot mlabor_cgnp mlabor_hheg mlabor_hhes mlabor_brk mlabor_trn mlabor_seek mlabor_bus mlabor_com, aseq swapnames drop(_cons) coeflabels(mlabor_cgnp = "Employment at corporations, government, and non-profits" mlabor_hheg = "Employment in household enterprise to produce goods" mlabor_hhes = "Employment in household enterprise to provide services" mlabor_brk = "Ancillary acitivities and breaks related to employment" mlabor_trn = "Training and studies in relation to employment" mlabor_seek = "Seeking employment" mlabor_bus = "Setting up a business" mlabor_com = "Commute time") legend(off) xtitle("Minutes") xline(0)
-graph export "$dir\figures\coefplot-emp.png", as(png) replace width(1200) 
-
-restore
-
 * Look at monthly expenditures at the household level.
 use "$data\TUS (2024)\tus106HH.dta", clear
 keep if Sector == "1"
